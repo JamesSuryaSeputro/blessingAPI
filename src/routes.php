@@ -7,7 +7,7 @@ use Slim\Http\Response;
 return function (App $app) {
     $container = $app->getContainer();
 
-    // get semua mata pelajaran
+    // get siswa by email dan password
     $app->post('/api_post_loginsiswa', function ($request, $response, $args) {
         $sth = $this->db->prepare("SELECT ifnull(COUNT(*), 0) AS status FROM daftarsiswa WHERE email =:email AND password =:password");
         $email = $request->getParam('email');
@@ -18,20 +18,6 @@ return function (App $app) {
         $todos = $sth->fetchAll();
         return $this->response->withJson($todos);
     });
-
-    // // login siswa dengan email dan password
-    // $app->post('/api_post_loginsiswa', function ($request, $response, $args) {
-    //     $email = $request->getParam('email');
-    //     $password = $request->getParam('password');
-    //     $sql = "SELECT COUNT(*) FROM daftarsiswa WHERE email =:email AND password =:email";
-    //     $sth = $this->db->prepare($sql);
-    //     $sth->bindParam(":email", $email);
-    //     $sth->bindParam(":password", $password);
-    //     $sth->execute();
-    //     $input['email'] = $email;
-    //     $input['password'] = $password;
-    //     return $this->response->withJson($input);
-    // });
 
     // Insert daftarsiswa
     $app->post('/api_post_daftarsiswa', function ($request, $response) {
