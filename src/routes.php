@@ -7,15 +7,33 @@ use Slim\Http\Response;
 return function (App $app) {
     $container = $app->getContainer();
 
-    // get semua daftarsiswa
-    $app->get('/api_get_daftarsiswa', function ($request, $response, $args) {
-        $sth = $this->db->prepare("SELECT * FROM daftarsiswa");
+    // get semua mata pelajaran
+    $app->post('/api_post_loginsiswa', function ($request, $response, $args) {
+        $sth = $this->db->prepare("SELECT ifnull(COUNT(*), 0) AS status FROM daftarsiswa WHERE email =:email AND password =:password");
+        $email = $request->getParam('email');
+        $password = $request->getParam('password');
+        $sth->bindParam(":email", $email);
+        $sth->bindParam(":password", $password);
         $sth->execute();
         $todos = $sth->fetchAll();
         return $this->response->withJson($todos);
     });
 
-     // Insert daftarsiswa
+    // // login siswa dengan email dan password
+    // $app->post('/api_post_loginsiswa', function ($request, $response, $args) {
+    //     $email = $request->getParam('email');
+    //     $password = $request->getParam('password');
+    //     $sql = "SELECT COUNT(*) FROM daftarsiswa WHERE email =:email AND password =:email";
+    //     $sth = $this->db->prepare($sql);
+    //     $sth->bindParam(":email", $email);
+    //     $sth->bindParam(":password", $password);
+    //     $sth->execute();
+    //     $input['email'] = $email;
+    //     $input['password'] = $password;
+    //     return $this->response->withJson($input);
+    // });
+
+    // Insert daftarsiswa
     $app->post('/api_post_daftarsiswa', function ($request, $response) {
         // get the parameter from the form submit
         $id = $request->getParam('id');
@@ -28,7 +46,7 @@ return function (App $app) {
         $sth->bindParam(':id', $id);
         $sth->bindParam(':nama', $nama);
         $sth->bindParam(':password', $password);
-        $sth->bindParam('email', $email);
+        $sth->bindParam(':email', $email);
         $sth->execute();
         $input['id'] = $this->db->lastInsertId();
         $input['nama'] = $nama;
@@ -39,9 +57,9 @@ return function (App $app) {
 
     // DELETE daftarsiswa
     $app->post('/api_delete_daftarsiswa', function ($request, $response) {
-        $id = $request->getParam('id');
+       $id = $request->getParam('id');
        $sth = $this->db->prepare("DELETE FROM daftarsiswa WHERE id=:id");
-       $sth->bindParam("id", $id);
+       $sth->bindParam(":id", $id);
        $sth->execute();
        return $this->response->withJson($id);
    });
@@ -55,10 +73,10 @@ return function (App $app) {
         
         $sql = "UPDATE daftarsiswa SET nama=:nama, password=:password, email=:email WHERE id=:id";
         $sth = $this->db->prepare($sql);
-        $sth->bindParam("id", $id);
+        $sth->bindParam(":id", $id);
         $sth->bindParam(':nama', $nama);
         $sth->bindParam(':password', $password);
-        $sth->bindParam('email', $email);
+        $sth->bindParam(':email', $email);
         $sth->execute();
         $input['id'] = $id;
         $input['nama'] = $nama;
@@ -88,6 +106,30 @@ return function (App $app) {
         $sth->bindParam(':nama_mapel', $nama_mapel);
         $sth->execute();
         $input['id_mapel'] = $this->db->lastInsertId();
+        $input['nama_mapel'] = $nama_mapel;
+        return $this->response->withJson($input);
+    });
+
+    // DELETE mapel
+    $app->post('/api_delete_mapel', function ($request, $response) {
+       $id_mapel = $request->getParam('id_mapel');
+       $sth = $this->db->prepare("DELETE FROM mapel WHERE id_mapel=:id_mapel");
+       $sth->bindParam(":id_mapel", $id_mapel);
+       $sth->execute();
+       return $this->response->withJson($id_mapel);
+   });
+
+    // UPDATE mapel
+    $app->post('/api_update_mapel', function ($request, $response) {
+        $id_mapel = $request->getParam('id_mapel');
+        $nama_mapel = $request->getParam('nama_mapel');
+        
+        $sql = "UPDATE daftarsiswa SET nama=:nama, password=:password, email=:email WHERE id=:id";
+        $sth = $this->db->prepare($sql);
+        $sth->bindParam(":id_mapel", $id_mapel);
+        $sth->bindParam(':nama_mapel', $nama_mapel);
+        $sth->execute();
+        $input['id_mapel'] = $id_mapel;
         $input['nama_mapel'] = $nama_mapel;
         return $this->response->withJson($input);
     });

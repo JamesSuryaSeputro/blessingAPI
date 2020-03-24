@@ -18,10 +18,10 @@ return [
 
         // Database connection settings           
         "db" => [
-            "host" => "localhost",
-            "dbname" => "dbakademik",
-            "user" => "root",
-            "pass" => ""
+            "host" => "remotemysql.com:3306",
+            "dbname" => "ImEr1JZ4WL",
+            "user" => "ImEr1JZ4WL",
+            "pass" => "ojDtdyQQ2b"
         ],
     ],
 ];
