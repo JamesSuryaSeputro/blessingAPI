@@ -8,18 +8,13 @@ return function (App $app) {
     $container = $app->getContainer();
 
     $app->post('/api_post_loginsiswa', function ($request, $response, $args) {
-        $sth = $this->db->prepare("SELECT ifnull(COUNT(*), 0) AS status FROM daftarsiswa WHERE email =:email AND password =:password");
+        $sth = $this->db->prepare("SELECT ifnull(COUNT(*), 0) AS status, id, nama, email FROM daftarsiswa WHERE email =:email AND password =:password");
         $email = $request->getParam('email');
         $password = $request->getParam('password');
         $sth->bindParam(":email", $email);
         $sth->bindParam(":password", $password);
         $sth->execute();
-        $todos = $sth->fetchAll();
-        // if($todos == 1){
-
-        // }else{
-
-        // }
+        $todos = $sth->fetchAll(); // ini balikin array
         return $this->response->withJson($todos[0]);
     });
 
