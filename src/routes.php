@@ -118,5 +118,40 @@ return function (App $app) {
         $input['nama_mapel'] = $nama_mapel;
         return $this->response->withJson($input);
     });
+
+    // UPLOAD materi
+    $app->post('/api_upload_materi/[{id}]', function(Request $request, Response $response, $args) {
+    
+        $uploadedFiles = $request->getUploadedFiles();
+        
+        // handle single input with single file upload
+        $uploadedFile = $uploadedFiles['materi'];
+        if ($uploadedFile->getError() === UPLOAD_ERR_OK) {
+            
+            $extension = pathinfo($uploadedFile->getClientFilename(), PATHINFO_EXTENSION);
+            
+            // ubah nama file dengan id materi
+            $filename = sprintf('%s.%0.8s', $args["id"], $extension);
+            
+            $directory = $this->get('settings')['upload_directory'];
+            $uploadedFile->moveTo($directory . DIRECTORY_SEPARATOR . $filename);
+    
+            // simpan nama file ke database
+            $sql = "UPDATE materi SET materi=:materi WHERE id_materi=:id";
+            $stmt = $this->db->prepare($sql);
+            $params = [
+                ":id" => $args["id"],
+                ":materi" => $filename
+            ];
+            
+            if($stmt->execute($params)){
+                // ambil base url dan gabungkan dengan file name untuk membentuk URL file
+                $url = $request->getUri()->getBaseUrl()."/assets/".$filename;
+                return $response->withJson(["status" => "success", "data" => $url], 200);
+            }
+            
+            return $response->withJson(["status" => "failed", "data" => "0"], 200);
+        }
+    });
 };
         
