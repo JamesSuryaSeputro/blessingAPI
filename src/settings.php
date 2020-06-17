@@ -3,6 +3,7 @@ return [
     'settings' => [
         'displayErrorDetails' => true, // set to false in production
         'addContentLengthHeader' => false, // Allow the web server to send the content-length header
+        'upload_directory' => __DIR__ . '/../public/uploads', // upload directory
 
         // Renderer settings
         'renderer' => [
@@ -18,10 +19,20 @@ return [
 
         // Database connection settings           
         "db" => [
-            "host" => "remotemysql.com:3306",
-            "dbname" => "ImEr1JZ4WL",
-            "user" => "ImEr1JZ4WL",
-            "pass" => "ojDtdyQQ2b"
+            "host" => "localhost",
+            "dbname" => "dbakademik",
+            "user" => "root",
+            "pass" => ""
+
+            // "host" => "remotemysql.com:3306",
+            // "dbname" => "ImEr1JZ4WL",
+            // "user" => "ImEr1JZ4WL",
+            // "pass" => "ojDtdyQQ2b"
+
+            // host: localhost
+            // dbname: dbakademik
+            // user: root
+        
         ],
     ],
 ];
