@@ -140,7 +140,7 @@ return function (App $app) {
 
      // GET materi by idmapel
      $app->get('/api_get_materi/[{id_mapel}]', function ($request, $response, $args) {
-        $sth = $this->db->prepare("SELECT * FROM materi WHERE id_mapel=:id_mapel");
+        $sth = $this->db->prepare("SELECT * FROM materi AS a INNER JOIN kelas AS b ON a.id_kelas = b.id_kelas WHERE id_mapel=:id_mapel");
         $sth->bindParam("id_mapel", $args['id_mapel']);
         $sth->execute();
         $todos = $sth->fetchAll();
@@ -152,6 +152,7 @@ return function (App $app) {
         $uploadedFiles = $request->getUploadedFiles();
         $judul_materi = $request->getParam('judul_materi');
         $id_mapel = $request->getParam('id_mapel');
+        $id_kelas = $request->getParam('id_kelas');
         // handle single input with single file upload
         $uploadedFile = $uploadedFiles['file'];
         
@@ -168,11 +169,12 @@ return function (App $app) {
             $uploadedFile->moveTo($directory . DIRECTORY_SEPARATOR . $filename);
     
             // simpan nama file ke database
-            $sql = "INSERT INTO materi(judul_materi, id_mapel, nama_materi) VALUES (:judul_materi, :id_mapel, :nama_materi)";
+            $sql = "INSERT INTO materi(judul_materi, id_mapel, id_kelas, nama_materi) VALUES (:judul_materi, :id_mapel, :id_kelas, :nama_materi)";
             $stmt = $this->db->prepare($sql);
             $params = [
                 ":judul_materi" => $judul_materi,
                 ":id_mapel" => $id_mapel,
+                ":id_kelas" => $id_kelas,
                 ":nama_materi" => $filename
             ];
             //if($judul_materi != NULL && $filename != NULL){
@@ -187,21 +189,40 @@ return function (App $app) {
     });
 
     // UPDATE materi
-    $app->put("/api_update_materi/{id}", function (Request $request, Response $response, $args){
+    $app->post('/api_update_materi/{id}', function(Request $request, Response $response, $args) {
         $id = $args["id"];
-        $judul_mapel = $request->getParsedBody();
-        $sql = "UPDATE materi SET judul_materi=:judul_materi WHERE id_materi=:id";
-        $stmt = $this->db->prepare($sql);
+        $uploadedFiles = $request->getUploadedFiles();
+        $new_materi = $request->getParsedBody();
+
+        $uploadedFile = $uploadedFiles['file'];
         
-        $data = [
-            ":id" => $id,
-            ":judul_materi" => $judul_mapel["judul_materi"]
-        ];
-    
-        if($stmt->execute($data))
-           return $response->withJson(["status" => "success", "data" => "1"], 200);
+        if (!$uploadedFile == null){
+        if ($uploadedFile->getError() === UPLOAD_ERR_OK) {
+            
+            $extension = pathinfo($uploadedFile->getClientFilename(), PATHINFO_EXTENSION);
+            
+            $basename = bin2hex(random_bytes(8));
+            $filename = sprintf('%s.%0.8s', $basename, $extension);
+            
+            $directory = $this->get('settings')['upload_directory'];
+            $uploadedFile->moveTo($directory . DIRECTORY_SEPARATOR . $filename);
+            $url = $request->getUri()->getBaseUrl()."/uploads/".$filename;
+           
+            $sql = "UPDATE materi SET judul_materi=:judul_materi, id_kelas=:id_kelas, nama_materi=:nama_materi WHERE id_materi=:id";
+            $stmt = $this->db->prepare($sql);
+            $data = [
+                ":id" => $id,
+                ":judul_materi" => $new_materi["judul_materi"],
+                ":id_kelas" => $new_materi["id_kelas"],
+                ":nama_materi" => $filename
+            ];
         
-        return $response->withJson(["status" => "failed", "data" => "0"], 400);
+            if($stmt->execute($data)){
+                return $response->withJson(["status" => 1, "filename" => $filename, "url" => $url], 200);
+             }
+             return $response->withJson(["status" => 0, "filename" => $filename, "url" => $url], 400);
+         }
+    }
     });
 
     // DELETE materi
@@ -326,9 +347,9 @@ return function (App $app) {
     });
 
      // GET soal by mapel
-     $app->get('/api_get_soal/[{id_mapelsoal}]', function ($request, $response, $args) {
-        $sth = $this->db->prepare("SELECT * FROM soal INNER JOIN kelas ON kelas.id_kelas = soal.id_kelas INNER JOIN jenjang ON jenjang.id_jenjang = soal.id_jenjang WHERE id_mapelsoal=:id_mapelsoal");
-        $sth->bindParam("id_mapelsoal", $args['id_mapelsoal']);
+     $app->get('/api_get_soal/[{id}]', function ($request, $response, $args) {
+        $sth = $this->db->prepare("SELECT * FROM soal AS a INNER JOIN kelas AS b ON a.id_kelas = b.id_kelas INNER JOIN jenjang AS c ON a.id_jenjang = c.id_jenjang WHERE id_mapelsoal=:id");
+        $sth->bindParam("id", $args['id']);
         $sth->execute();
         $todos = $sth->fetchAll();
         return $this->response->withJson($todos);
@@ -355,7 +376,6 @@ return function (App $app) {
 
     // INSERT soal
     $app->post('/api_post_soal', function ($request, $response) {
-
         $id_soal = $request->getParam('id_soal');
         $id_jenjang = $request->getParam('id_jenjang');
         $id_mapelsoal = $request->getParam('id_mapelsoal');
@@ -547,10 +567,10 @@ return function (App $app) {
                 ":jawaban" => $new_detailkuis["jawaban"]
             ];
         
-            if($stmt->execute($data))
+            if($stmt->execute($data)){
                return $response->withJson(["status" => 1, "filename" => $filename, "url" => $url], 200);
-            
-            return $response->withJson(["status" => 1, "filename" => $filename, "url" => $url], 400);
+            }         
+            return $response->withJson(["status" => 0, "filename" => $filename, "url" => $url], 400);
         }
     }
     });
@@ -564,12 +584,271 @@ return function (App $app) {
         return $this->response->withJson($todos);
     });
 
-     // GET tryout
-     $app->get('/api_get_tryout', function ($request, $response, $args) {
-        $sth = $this->db->prepare("SELECT * FROM tryout");
+    //GET tryout
+    $app->get('/api_get_tryout', function ($request, $response, $args) {
+        $sth = $this->db->prepare("SELECT * FROM tryout AS a INNER JOIN jenjang AS b ON a.id_jenjang = b.id_jenjang WHERE a.id_jenjang = b.id_jenjang");
+        $sth->bindParam("id", $args['id']);
         $sth->execute();
         $todos = $sth->fetchAll();
         return $this->response->withJson($todos);
     });
+
+    // INSERT tryout
+    $app->post('/api_post_tryout', function ($request, $response) {
+        $judul = $request->getParam('judul');
+        $deskripsi = $request->getParam('deskripsi');
+        $timer = $request->getParam('timer');
+        $id_jenjang = $request->getParam('id_jenjang');
+
+        $sql = "INSERT INTO tryout(judul, deskripsi, timer, id_jenjang) VALUES (:judul, :deskripsi, :timer, :id_jenjang)";
+        $sth = $this->db->prepare($sql);
+        $sth->bindParam(':judul', $judul);
+        $sth->bindParam(':deskripsi', $deskripsi);
+        $sth->bindParam(':timer', $timer);
+        $sth->bindParam(':id_jenjang', $id_jenjang);
+        $sth->execute();
+        $input['id_tryout'] = $this->db->lastInsertId();
+        $input['judul'] = $judul;
+        $input['deskripsi'] = $deskripsi;
+        $input['timer'] = $timer;
+        $input['id_jenjang'] = $id_jenjang;
+        return $this->response->withJson($input);
+    });
+
+    // UPDATE tryout
+    $app->put("/api_update_tryout/{id}", function (Request $request, Response $response, $args){
+        $id = $args["id"];
+        $new_to = $request->getParsedBody();
+        $sql = "UPDATE tryout SET judul=:judul, deskripsi=:deskripsi, timer=:timer WHERE id_tryout=:id";
+        $stmt = $this->db->prepare($sql);
+            
+        $data = [
+            ":id" => $id,
+            ":judul" => $new_to["judul"],
+            ":deskripsi" => $new_to["deskripsi"],
+            ":timer" => $new_to["timer"]
+            ];
+        
+            if($stmt->execute($data))
+               return $response->withJson(["status" => "success", "data" => "1"], 200);
+            
+            return $response->withJson(["status" => "failed", "data" => "0"], 400);
+        });
+    
+    // DELETE tryout
+    $app->delete("/api_delete_tryout/{id}", function (Request $request, Response $response, $args){
+        $id_tryout = $args["id"];
+        $sql = "DELETE FROM tryout WHERE id_tryout=:id";
+        $stmt = $this->db->prepare($sql);
+        
+        $data = [
+            ":id" => $id_tryout
+            ];
+            
+        if($stmt->execute($data)){
+        return $response->withJson(["status" => "success", "data" => "1"], 200);
+        }
+        return $response->withJson(["status" => "failed", "data" => "0"], 400); 
+    });
+    
+     // GET detailkuis by id
+     $app->get('/api_get_detailtryout/[{id}]', function ($request, $response, $args) {
+        $sth = $this->db->prepare("SELECT * FROM detailtryout WHERE id_tryout=:id");
+        $sth->bindParam("id", $args['id']);
+        $sth->execute();
+        $todos = $sth->fetchAll();
+        return $this->response->withJson($todos);
+    });
+
+     // INSERT detailtryout
+     $app->post('/api_post_detailtryout', function ($request, $response) {
+        $uploadedFiles = $request->getUploadedFiles();
+        $id_detailtryout = $request->getParam('id_detailtryout');
+        $id_tryout = $request->getParam('id_tryout');
+        $jawaban_to = $request->getParam('jawaban_to');
+        $timer = $request->getParam('timer');
+        $uploadedFile = $uploadedFiles['file'];
+        
+        if (!$uploadedFile == null){
+        if ($uploadedFile->getError() === UPLOAD_ERR_OK) {
+            
+            $extension = pathinfo($uploadedFile->getClientFilename(), PATHINFO_EXTENSION);
+            
+            // ubah nama file dengan random karakter
+            $basename = bin2hex(random_bytes(8));
+            $filename = sprintf('%s.%0.8s', $basename, $extension);
+            
+            $directory = $this->get('settings')['upload_directory'];
+            $uploadedFile->moveTo($directory . DIRECTORY_SEPARATOR . $filename);
+            $url = $request->getUri()->getBaseUrl()."/uploads/".$filename;
+            // simpan nama file ke database
+            $sql = "INSERT INTO detailtryout(id_detailtryout, id_tryout, img_to, jawaban_to) VALUES (:id_detailtryout, :id_tryout, :img_to, :jawaban_to)";
+            $stmt = $this->db->prepare($sql);
+            $params = [
+                ":id_detailtryout" => $this->db->lastInsertId(),
+                ":id_tryout" => $id_tryout,
+                ":img_to" => $filename,
+                ":jawaban_to" => $jawaban_to,
+                
+            ];
+            
+            if($stmt->execute($params)){
+                return $response->withJson(["status" => 1, "filename" => $filename, "url" => $url], 200);
+            }    else{
+                return $response->withJson(["status" => 0, "filename" => "", "url" => ""], 400);
+            }
+        }
+    }
+    });
+
+     // UPDATE detailtryout
+     $app->post('/api_update_detailtryout/{id}', function(Request $request, Response $response, $args) {
+        $id = $args["id"];
+        $uploadedFiles = $request->getUploadedFiles();
+        $new_detailtryout = $request->getParsedBody();
+
+        $uploadedFile = $uploadedFiles['file'];
+        
+        if (!$uploadedFile == null){
+        if ($uploadedFile->getError() === UPLOAD_ERR_OK) {
+            
+            $extension = pathinfo($uploadedFile->getClientFilename(), PATHINFO_EXTENSION);
+            
+            $basename = bin2hex(random_bytes(8));
+            $filename = sprintf('%s.%0.8s', $basename, $extension);
+            
+            $directory = $this->get('settings')['upload_directory'];
+            $uploadedFile->moveTo($directory . DIRECTORY_SEPARATOR . $filename);
+            $url = $request->getUri()->getBaseUrl()."/uploads/".$filename;
+           
+            $sql = "UPDATE detailtryout SET img_to=:img_to, jawaban_to=:jawaban_to WHERE id_detailtryout=:id";
+            $stmt = $this->db->prepare($sql);
+            $data = [
+                ":id" => $id,
+                ":img_to" => $filename,
+                ":jawaban_to" => $new_detailtryout["jawaban_to"]
+            ];
+        
+            if($stmt->execute($data)){
+               return $response->withJson(["status" => 1, "filename" => $filename, "url" => $url], 200);
+            }
+            return $response->withJson(["status" => 0, "filename" => $filename, "url" => $url], 400);
+        }
+    }
+    });
+
+    // DELETE kuis
+    $app->delete("/api_delete_detailtryout/{id}", function (Request $request, Response $response, $args){
+        $id_detailtryout = $args["id"];
+        $sql = "DELETE FROM detailtryout WHERE id_detailtryout=:id";
+        $stmt = $this->db->prepare($sql);
+    
+        $data = [
+            ":id" => $id_detailtryout
+        ];
+        
+        if($stmt->execute($data)){
+        return $response->withJson(["status" => "success", "data" => "1"], 200);
+        }
+        return $response->withJson(["status" => "failed", "data" => "0"], 400); 
+    });
+
+    $app->get('/api_get_nilaisoal/{id}', function ($request, $response, $args) {
+       $sth = $this->db->prepare("SELECT a.*, b.nama_soal FROM nilaisoal AS a INNER JOIN soal AS b ON a.id_soal = b.id_soal WHERE a.id = :id");
+       $sth->bindParam("id", $args['id']);
+       $sth->execute();
+       $todos = $sth->fetchAll();
+       return $this->response->withJson($todos);
+   });
+
+    // INSERT nilaisoal
+    $app->post('/api_post_nilaisoal', function ($request, $response) {
+        $id_soal = $request->getParam('id_soal');
+        $id = $request->getParam('id');
+        $nilai_soal = $request->getParam('nilai_soal');
+        $jumlah_soal = $request->getParam('jumlah_soal');
+
+        $sql = "INSERT INTO nilaisoal(id_soal, id, nilai_soal, jumlah_soal) VALUES (:id_soal, :id, :nilai_soal, :jumlah_soal)";
+        $sth = $this->db->prepare($sql);
+        $sth->bindParam(':id_soal', $id_soal);
+        $sth->bindParam(':id', $id);
+        $sth->bindParam(':nilai_soal', $nilai_soal);
+        $sth->bindParam(':jumlah_soal', $jumlah_soal);
+        $sth->execute();
+        $input['id_nilaisoal'] = $this->db->lastInsertId();
+        $input['id_soal'] = $id_soal;
+        $input['id'] = $id;
+        $input['nilai_soal'] = $nilai_soal;
+        $input['jumlah_soal'] = $nilai_jumlah;
+        return $this->response->withJson($input);
+    });
+
+    // UPDATE nilaisoal
+    $app->post("/api_update_nilaisoal/{id}", function (Request $request, Response $response, $args){
+        $id = $args["id"];
+        $new_score = $request->getParsedBody();
+        $sql = "UPDATE nilaisoal SET nilai_soal=:nilai_soal, jumlah_soal=:jumlah_soal WHERE id_nilaisoal=:id";
+        $stmt = $this->db->prepare($sql);
+        
+        $data = [
+            ":id" => $id,
+            ":nilai_soal" => $new_score["nilai_soal"],
+            ":jumlah_soal" => $new_score["jumlah_soal"]
+        ];         
+
+        if($stmt->execute($data))
+        return $response->withJson(["status" => "success", "data" => "1"], 200);
+                
+        return $response->withJson(["status" => "failed", "data" => "0"], 400);
+    });
+
+    $app->get('/api_get_nilaitryout/{id}', function ($request, $response, $args) {
+        $sth = $this->db->prepare("SELECT a.*, b.judul FROM nilaitryout AS a INNER JOIN tryout AS b ON a.id_tryout = b.id_tryout WHERE a.id = :id");
+        $sth->bindParam("id", $args['id']);
+        $sth->execute();
+        $todos = $sth->fetchAll();
+        return $this->response->withJson($todos);
+    });
+ 
+     // INSERT nilaisoal
+     $app->post('/api_post_nilaitryout', function ($request, $response) {
+         $id_tryout = $request->getParam('id_tryout');
+         $id = $request->getParam('id');
+         $nilai_tryout = $request->getParam('nilai_tryout');
+         $jumlah_tryout = $request->getParam('jumlah_tryout');
+ 
+         $sql = "INSERT INTO nilaitryout(id_tryout, id, nilai_tryout, jumlah_tryout) VALUES (:id_tryout, :id, :nilai_tryout, :jumlah_tryout)";
+         $sth = $this->db->prepare($sql);
+         $sth->bindParam(':id_tryout', $id_tryout);
+         $sth->bindParam(':id', $id);
+         $sth->bindParam(':nilai_tryout', $nilai_tryout);
+         $sth->bindParam(':jumlah_tryout', $jumlah_tryout);
+         $sth->execute();
+         $input['id_nilaitryout'] = $this->db->lastInsertId();
+         $input['id_tryout'] = $id_tryout;
+         $input['id'] = $id;
+         $input['nilai_tryout'] = $nilai_tryout;
+         $input['jumlah_tryout'] = $nilai_tryout;
+         return $this->response->withJson($input);
+     });
+ 
+     // UPDATE nilaisoal
+    $app->post("/api_update_nilaitryout/{id}", function (Request $request, Response $response, $args){
+        $id = $args["id"];
+        $new_score = $request->getParsedBody();
+        $sql = "UPDATE nilaitryout SET nilai_tryout=:nilai_tryout, jumlah_tryout=:jumlah_tryout WHERE id_nilaitryout=:id";
+        $stmt = $this->db->prepare($sql);
+        
+        $data = [
+            ":id" => $id,
+            ":nilai_tryout" => $new_score["nilai_tryout"],
+            ":jumlah_tryout" => $new_score["jumlah_tryout"]
+        ];         
+
+        if($stmt->execute($data))
+        return $response->withJson(["status" => "success", "data" => "1"], 200);
+                
+        return $response->withJson(["status" => "failed", "data" => "0"], 400);
+    });    
 };
         
