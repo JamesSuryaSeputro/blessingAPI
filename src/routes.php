@@ -25,6 +25,29 @@ return function (App $app) {
         return $this->response->withJson($todos[0]);
     });
 
+     // LOGIN
+     $app->post('/api_post_checkemail', function ($request, $response, $args) {
+        $email = $request->getParam('email');
+        $sth = $this->db->prepare("SELECT ifnull(COUNT(*), 0) AS status, email FROM user WHERE email = :email");
+        $sth->bindParam(":email", $email);
+        $sth->execute();
+        $todos = $sth->fetchAll();
+        return $this->response->withJson($todos[0]);
+    });
+
+    $app->post('/api_reset_password', function ($request, $response, $args) {
+        $email = $request->getParam('email');
+        $password = $request -> getParam('password');        
+        $sth = $this->db->prepare("UPDATE `user` SET password = :password WHERE email = :email");
+        $sth->bindParam(":email", $email);
+        $sth->bindParam(':password', $password);
+        if($sth->execute()){
+            return $response->withJson(["status" => 1], 200);
+        }    else{
+            return $response->withJson(["status" => 0], 400);
+        }
+    });
+
     // INSERT user
     $app->post('/api_post_user', function ($request, $response) {
         // get the parameter from the form submit
