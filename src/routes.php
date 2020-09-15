@@ -387,16 +387,6 @@ return function (App $app) {
         return $this->response->withJson($todos);
     });
 
-
-    // GET pembahasan soal by idkuis
-    $app->get('/api_get_pembahasansoal/[{id_kuis}]', function ($request, $response, $args) {
-        $sth = $this->db->prepare("SELECT * FROM soal INNER JOIN kelas ON kelas.id_kelas = soal.id_kelas INNER JOIN jenjang ON jenjang.id_jenjang = soal.id_jenjang WHERE id_kuis=:id_kuis");
-        $sth->bindParam("id_kuis", $args['id_kuis']);
-        $sth->execute();
-        $todos = $sth->fetchAll();
-        return $this->response->withJson($todos);
-    });
-
     // INSERT soal
     $app->post('/api_post_soal', function ($request, $response) {
         $id_soal = $request->getParam('id_soal');
@@ -596,15 +586,6 @@ return function (App $app) {
             return $response->withJson(["status" => 0, "filename" => $filename, "url" => $url], 400);
         }
     }
-    });
-
-    // GET pembahasan by idsoal
-    $app->get('/api_get_pembahasan/[{id}]', function ($request, $response, $args) {
-        $sth = $this->db->prepare("SELECT * FROM detailkuis INNER JOIN kuis ON kuis.id_kuis = detailkuis.id_kuis WHERE id_soal=:id");
-        $sth->bindParam("id", $args['id']);
-        $sth->execute();
-        $todos = $sth->fetchAll();
-        return $this->response->withJson($todos);
     });
 
     //GET tryout
@@ -872,6 +853,71 @@ return function (App $app) {
         return $response->withJson(["status" => "success", "data" => "1"], 200);
                 
         return $response->withJson(["status" => "failed", "data" => "0"], 400);
-    });    
-};
+    });
+
+    $app->post('/api_update_jawaban', function(Request $request, Response $response, $args) {
+        $id = $request->getParam('id');
+        $uploadedFiles = $request->getUploadedFiles();
+
+        $uploadedFile = $uploadedFiles['file'];
         
+        if (!$uploadedFile == null){
+        if ($uploadedFile->getError() === UPLOAD_ERR_OK) {
+            
+            $extension = pathinfo($uploadedFile->getClientFilename(), PATHINFO_EXTENSION);
+            
+            $basename = bin2hex(random_bytes(8));
+            $filename = sprintf('%s.%0.8s', $basename, $extension);
+            
+            $directory = $this->get('settings')['upload_directory'];
+            $uploadedFile->moveTo($directory . DIRECTORY_SEPARATOR . $filename);
+            $url = $request->getUri()->getBaseUrl()."/uploads/".$filename;
+           
+            $sql = "UPDATE detailkuis SET img_jawaban=:img_jawaban WHERE id_detailkuis=:id";
+            $stmt = $this->db->prepare($sql);
+            $data = [
+                ":id" => $id,
+                ":img_jawaban" => $filename
+            ];
+        
+            if($stmt->execute($data)){
+               return $response->withJson(["status" => 1, "filename" => $filename, "url" => $url], 200);
+            }
+            return $response->withJson(["status" => 0, "filename" => $filename, "url" => $url], 400);
+        }
+    }
+    });
+
+    $app->post('/api_update_jawabanto', function(Request $request, Response $response, $args) {
+        $id = $request->getParam('id');
+        $uploadedFiles = $request->getUploadedFiles();
+
+        $uploadedFile = $uploadedFiles['file'];
+        
+        if (!$uploadedFile == null){
+        if ($uploadedFile->getError() === UPLOAD_ERR_OK) {
+            
+            $extension = pathinfo($uploadedFile->getClientFilename(), PATHINFO_EXTENSION);
+            
+            $basename = bin2hex(random_bytes(8));
+            $filename = sprintf('%s.%0.8s', $basename, $extension);
+            
+            $directory = $this->get('settings')['upload_directory'];
+            $uploadedFile->moveTo($directory . DIRECTORY_SEPARATOR . $filename);
+            $url = $request->getUri()->getBaseUrl()."/uploads/".$filename;
+           
+            $sql = "UPDATE detailtryout SET img_jawaban=:img_jawaban WHERE id_detailtryout=:id";
+            $stmt = $this->db->prepare($sql);
+            $data = [
+                ":id" => $id,
+                ":img_jawaban" => $filename
+            ];
+        
+            if($stmt->execute($data)){
+               return $response->withJson(["status" => 1, "filename" => $filename, "url" => $url], 200);
+            }
+            return $response->withJson(["status" => 0, "filename" => $filename, "url" => $url], 400);
+        }
+    }
+    });
+};
